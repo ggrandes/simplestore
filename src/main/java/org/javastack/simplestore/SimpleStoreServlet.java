@@ -109,7 +109,7 @@ public class SimpleStoreServlet extends HttpServlet {
 		if (key == null) {
 			log("Invalid request: path=null");
 			final PrintWriter out = response.getWriter();
-			sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 			return;
 		}
 		InputStream is = null;
@@ -126,7 +126,7 @@ public class SimpleStoreServlet extends HttpServlet {
 			if (f.length() >= Integer.MAX_VALUE) {
 				final PrintWriter out = response.getWriter();
 				log("Invalid request: data too large");
-				sendError(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
+				sendResponse(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
 				return;
 			}
 			if (wantBody) {
@@ -149,12 +149,12 @@ public class SimpleStoreServlet extends HttpServlet {
 		} catch (FileNotFoundException e) {
 			final PrintWriter out = response.getWriter();
 			log("Invalid request: file not found");
-			sendError(response, out, HttpServletResponse.SC_NOT_FOUND, "Not Found");
+			sendResponse(response, out, HttpServletResponse.SC_NOT_FOUND, "Not Found");
 			return;
 		} catch (Exception e) {
 			log("Invalid request: " + e.toString(), e);
 			final PrintWriter out = response.getWriter();
-			sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 			return;
 		} finally {
 			closeQuietly(os);
@@ -169,12 +169,12 @@ public class SimpleStoreServlet extends HttpServlet {
 		final String key = getPathInfoKey(request.getPathInfo());
 		if (key == null) {
 			log("Invalid request: path=null");
-			sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 			return;
 		}
 		if (request.getContentLength() >= Integer.MAX_VALUE) {
 			log("Invalid request: data too large");
-			sendError(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
+			sendResponse(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
 			return;
 		}
 		InputStream is = null;
@@ -183,10 +183,10 @@ public class SimpleStoreServlet extends HttpServlet {
 			is = request.getInputStream();
 			os = openOutput(key);
 			copyStream(is, os);
-			sendSuccess(response, out, "updated");
+			sendResponse(response, out, HttpServletResponse.SC_OK, "updated");
 		} catch (Exception e) {
 			log("Invalid request: " + e.toString(), e);
-			sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 			return;
 		} finally {
 			closeQuietly(os);
@@ -201,23 +201,23 @@ public class SimpleStoreServlet extends HttpServlet {
 		final String key = getPathInfoKey(request.getPathInfo());
 		if (key == null) {
 			log("Invalid request: path=null");
-			sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 			return;
 		}
 		try {
 			final File f = fileForKey(key);
 			if (!f.isFile()) {
-				sendError(response, out, HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				sendResponse(response, out, HttpServletResponse.SC_NOT_FOUND, "Not Found");
 				return;
 			}
 			if (f.delete()) {
-				sendSuccess(response, out, "deleted");
+				sendResponse(response, out, HttpServletResponse.SC_OK, "deleted");
 				return;
 			}
 		} catch (Exception e) {
 			log("Invalid request: " + e.toString(), e);
 		}
-		sendError(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
+		sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
 	}
 
 	private final File fileForKey(final String key) throws IOException {
@@ -227,7 +227,7 @@ public class SimpleStoreServlet extends HttpServlet {
 			log("INVALID PATH: key=" + key + " (" + f.getPath() + ")");
 			throw new FileNotFoundException("Invalid path");
 		}
-		//log("Resolved key=" + key + " to=" + f.getPath() + " chroot=" + storeDir.getPath());
+		// log("Resolved key=" + key + " to=" + f.getPath() + " chroot=" + storeDir.getPath());
 		return f;
 	}
 
@@ -271,25 +271,16 @@ public class SimpleStoreServlet extends HttpServlet {
 		response.setHeader("Pragma", "no-cache");
 	}
 
-	private static final void sendSuccess(final HttpServletResponse response, final PrintWriter out,
-			final String msg) {
-		final String json = "{\"status\":\"success\",\"message\":\"" + msg + "\"}\r\n";
-		sendResponse(response, out, json);
-	}
-
-	private static final void sendError(final HttpServletResponse response, final PrintWriter out,
-			final int status, final String msg) {
-		final String json = "{\"status\":\"error\",\"error\":\"" + msg + "\"}\r\n";
-		response.setStatus(status);
-		sendResponse(response, out, json);
-	}
-
 	private static final void sendResponse(final HttpServletResponse response, final PrintWriter out,
-			final String json) {
+			final int status, final String msg) {
+		final StringBuilder sb = new StringBuilder(36 + msg.length());
+		sb.append("{\"status\":\"");
+		sb.append(((status >= 400) && (status <= 599)) ? "error" : "success");
+		sb.append("\",\"message\":\"").append(msg).append("\"}\r\n");
 		response.setContentType("application/json");
-		response.setContentLength(json.length());
+		response.setContentLength(sb.length());
 		setNoCache(response);
-		out.print(json);
+		out.print(sb.toString());
 		out.flush();
 	}
 
