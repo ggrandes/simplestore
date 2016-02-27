@@ -47,6 +47,13 @@ public class SimpleStoreServlet extends HttpServlet {
 	@Override
 	public void init() throws ServletException {
 		String cfgDir = null;
+		// Try Context Property
+		if (cfgDir == null) {
+			try {
+				cfgDir = getServletContext().getInitParameter(STORAGE_PARAM);
+			} catch (Exception e) {
+			}
+		}
 		// Try System Property
 		if (cfgDir == null) {
 			try {

@@ -22,7 +22,7 @@ SimpleStore is an Idempotent RESTful PUT/GET/DELETE key/value store in Java. Pro
 
 ### Configuration
 
-SimpleStore only need directory path to store data, this is configured with property name `org.javastack.simplestore.directory`, that can be configured in System Property, System Environment, or file named `simplestore.properties` (located in classpath) 
+SimpleStore only need directory path to store data, this is configured with property name `org.javastack.simplestore.directory`, that can be configured in a Context Param, System Property, System Environment, or file named `simplestore.properties` (located in classpath) 
 
 ### Sample cURL usage
 
