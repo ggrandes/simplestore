@@ -73,7 +73,11 @@ public class SimpleStoreServlet extends HttpServlet {
 			final Properties p = new Properties();
 			try {
 				log("Searching " + CONF_FILE.substring(1) + " in classpath");
-				p.load(this.getClass().getResourceAsStream(CONF_FILE));
+				final InputStream is = this.getClass().getResourceAsStream(CONF_FILE);
+				if (is != null) {
+					p.load(is);
+					is.close();
+				}
 			} catch (IOException e) {
 				throw new ServletException(e);
 			}
