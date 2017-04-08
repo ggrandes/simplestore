@@ -137,12 +137,6 @@ public class SimpleStoreServlet extends HttpServlet {
 				setLightCache(response);
 				return;
 			}
-			if (f.length() >= Integer.MAX_VALUE) {
-				final PrintWriter out = response.getWriter();
-				log("Invalid request: data too large");
-				sendResponse(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
-				return;
-			}
 			String mimeType = request.getServletContext().getMimeType(key);
 			if (mimeType == null) {
 				mimeType = getMimeType(key);
@@ -152,8 +146,8 @@ public class SimpleStoreServlet extends HttpServlet {
 			}
 			response.setDateHeader("Last-Modified", f.lastModified());
 			setLightCache(response);
+			response.setHeader("Content-Length", String.valueOf(f.length()));
 			if (wantBody) {
-				response.setContentLength((int) f.length());
 				if (!useAIO(request, response, f)) {
 					is = openInput(f);
 					os = response.getOutputStream();
@@ -184,11 +178,6 @@ public class SimpleStoreServlet extends HttpServlet {
 		if (key == null) {
 			log("Invalid request: path=null");
 			sendResponse(response, out, HttpServletResponse.SC_BAD_REQUEST, "Bad request");
-			return;
-		}
-		if (request.getContentLength() >= Integer.MAX_VALUE) {
-			log("Invalid request: data too large");
-			sendResponse(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
 			return;
 		}
 		InputStream is = null;
