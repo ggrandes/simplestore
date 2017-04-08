@@ -127,6 +127,9 @@ public class SimpleStoreServlet extends HttpServlet {
 		OutputStream os = null;
 		try {
 			final File f = fileForKey(key);
+			if (!f.isFile()) {
+				throw new FileNotFoundException();
+			}
 			final long ifModifiedSince = request.getDateHeader("If-Modified-Since");
 			if ((ifModifiedSince > 0) && (f.lastModified() <= ifModifiedSince)) {
 				response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
@@ -140,10 +143,6 @@ public class SimpleStoreServlet extends HttpServlet {
 				sendResponse(response, out, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Too large");
 				return;
 			}
-			if (wantBody) {
-				is = openInput(key);
-				os = response.getOutputStream();
-			}
 			String mimeType = request.getServletContext().getMimeType(key);
 			if (mimeType == null) {
 				mimeType = getMimeType(key);
@@ -155,7 +154,11 @@ public class SimpleStoreServlet extends HttpServlet {
 			setLightCache(response);
 			if (wantBody) {
 				response.setContentLength((int) f.length());
-				copyStream(is, os);
+				if (!useAIO(request, response, f)) {
+					is = openInput(f);
+					os = response.getOutputStream();
+					copyStream(is, os);
+				}
 			}
 		} catch (FileNotFoundException e) {
 			final PrintWriter out = response.getWriter();
@@ -191,8 +194,9 @@ public class SimpleStoreServlet extends HttpServlet {
 		InputStream is = null;
 		OutputStream os = null;
 		try {
+			final File f = fileForKey(key);
 			is = request.getInputStream();
-			os = openOutput(key);
+			os = openOutput(f);
 			copyStream(is, os);
 			sendResponse(response, out, HttpServletResponse.SC_OK, "updated");
 		} catch (Exception e) {
@@ -242,14 +246,12 @@ public class SimpleStoreServlet extends HttpServlet {
 		return f;
 	}
 
-	private final InputStream openInput(final String key) throws IOException {
-		final File f = fileForKey(key);
-		return new FileInputStream(f);
+	private final InputStream openInput(final File inFile) throws IOException {
+		return new FileInputStream(inFile);
 	}
 
-	private final OutputStream openOutput(final String key) throws IOException {
-		final File f = fileForKey(key);
-		return new FileOutputStream(f);
+	private final OutputStream openOutput(final File outFile) throws IOException {
+		return new FileOutputStream(outFile);
 	}
 
 	private static final void closeQuietly(final Closeable is) {
@@ -259,6 +261,19 @@ public class SimpleStoreServlet extends HttpServlet {
 			} catch (IOException e) {
 			}
 		}
+	}
+
+	private final boolean useAIO(final HttpServletRequest request, final HttpServletResponse response,
+			final File sendFile) throws IOException {
+		final boolean aio = Boolean.TRUE.equals(request.getAttribute("org.apache.tomcat.sendfile.support"));
+		if (aio) {
+			request.setAttribute("org.apache.tomcat.sendfile.filename", sendFile.getAbsolutePath());
+			request.setAttribute("org.apache.tomcat.sendfile.start", Long.valueOf(0L));
+			request.setAttribute("org.apache.tomcat.sendfile.end", Long.valueOf(sendFile.length()));
+			response.setHeader("X-sendfile", "true");
+			response.flushBuffer();
+		}
+		return aio;
 	}
 
 	private static final void copyStream(final InputStream is, final OutputStream os) throws IOException {
