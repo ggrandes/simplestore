@@ -19,6 +19,8 @@ SimpleStore is an Idempotent RESTful PUT/GET/DELETE key/value store in Java. Pro
   - Key names are limited to safe URL caracters: `A-Za-z0-9._-`
   - All data are stored as plain files in a single directory, in some filesystems, like FAT32 are limited to 65k files.
   - If you use a case-insensitive filesystem (like FAT32) Key names can collide.
+  - Large files (+2GB) are supported, but in some filesystems (like FAT32) can be a problem.
+  - [AIO/Sendfile](https://tomcat.apache.org/tomcat-7.0-doc/aio.html#Asynchronous_writes) are supported, but need APR/NIO connector in Tomcat. 
 
 ### Configuration
 
