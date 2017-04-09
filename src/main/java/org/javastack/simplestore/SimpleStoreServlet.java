@@ -46,56 +46,65 @@ public class SimpleStoreServlet extends HttpServlet {
 
 	@Override
 	public void init() throws ServletException {
-		String cfgDir = null;
+		// Get Config param
+		try {
+			storeDir = new File(getConfig(STORAGE_PARAM, null)).getCanonicalFile();
+			log("Storage Path: " + storeDir);
+			storeDir.mkdirs();
+		} catch (Exception e) {
+			throw new ServletException(e);
+		}
+	}
+
+	private final String getConfig(final String paramName, final String defValue) throws ServletException {
+		String value = null;
 		// Try Context Property
-		if (cfgDir == null) {
+		if (value == null) {
 			try {
-				cfgDir = getServletContext().getInitParameter(STORAGE_PARAM);
+				value = getServletContext().getInitParameter(paramName);
 			} catch (Exception e) {
 			}
 		}
 		// Try System Property
-		if (cfgDir == null) {
+		if (value == null) {
 			try {
-				cfgDir = System.getProperty(STORAGE_PARAM);
+				value = System.getProperty(paramName);
 			} catch (Exception e) {
 			}
 		}
 		// Try System Environment
-		if (cfgDir == null) {
+		if (value == null) {
 			try {
-				cfgDir = System.getenv(STORAGE_PARAM);
+				value = System.getenv(paramName);
 			} catch (Exception e) {
 			}
 		}
 		// Try Config file
-		if (cfgDir == null) {
+		if (value == null) {
 			final Properties p = new Properties();
+			InputStream is = null;
 			try {
 				log("Searching " + CONF_FILE.substring(1) + " in classpath");
-				final InputStream is = this.getClass().getResourceAsStream(CONF_FILE);
+				is = this.getClass().getResourceAsStream(CONF_FILE);
 				if (is != null) {
 					p.load(is);
 					is.close();
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				throw new ServletException(e);
 			}
-			// getServletContext().getRealPath("/WEB-INF/storage/")
-			log("Searching " + STORAGE_PARAM + " in config file");
-			cfgDir = p.getProperty(STORAGE_PARAM);
+			log("Searching " + paramName + " in config file");
+			value = p.getProperty(paramName);
+		}
+		// Default value
+		if (value == null) {
+			value = defValue;
 		}
 		// Throw Error
-		if (cfgDir == null) {
-			throw new ServletException("Invalid param for: " + STORAGE_PARAM);
+		if (value == null) {
+			throw new ServletException("Invalid param for: " + paramName);
 		}
-		try {
-			this.storeDir = new File(cfgDir).getCanonicalFile();
-		} catch (IOException e) {
-			throw new ServletException(e);
-		}
-		log("Storage Path: " + storeDir);
-		storeDir.mkdirs();
+		return value;
 	}
 
 	@Override
